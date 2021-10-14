@@ -1,2 +1,2 @@
 # sandhill_plant
-MLM analysis of snahill plants
+MLM analysis of sandhill plants
