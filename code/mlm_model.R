@@ -3,7 +3,10 @@ library(lme4)
 library(tidyr)
 library(dplyr)
 library(lme4)
-library(lm)
+library(lmerTest)
+library(DHARMa)
+
+source("http://highstat.com/Books/BGS/GAMM/RCodeP2/HighstatLibV6.R")
 ################################################
 # load data
 ################################################
@@ -19,7 +22,7 @@ Env<-read.csv("data/Env_variables.csv",row=1 )
 Env_Z<-scale(Env[,2:15])
 Env_Z2<-data.frame(Env_Z,Env$Site)#join site column back
 colnames(Env_Z2)[15]<-"Site"#rename column
-
+corvif(Env_Z)
 #Join Env_Z and plants
 plant_env<-merge(Env_Z2, plants, by=0, all=TRUE) 
 
@@ -36,13 +39,13 @@ colnames(final_dat)[1]<- 'Plot' #change column name for plots to "Plot"
 #AIC Model Selection (try all possible models)
 
 #make polynomial terms...
-hh$Elevation2 <- hh$Elevation ^ 2
-hh$LITU2 <- hh$LITU ^ 2
-hh$Ca2 <- hh$Ca ^ 2
-hh$P2 <- hh$P ^ 2
-hh$Herb2 = hh$Herb ^ 2
+final_dat$soil_moisture2 <- final_dat$soil_moisture ^ 2
+final_dat$soil_moisture2 <- final_dat$soil_moisture ^ 2
+final_dat$soil_moisture2 <- final_dat$soil_moisture ^ 2
+final_dat$soil_moisture2 <- final_dat$soil_moisture ^ 2
+final_dat$soil_moisture2 <- final_dat$soil_moisture ^ 2
 
-#Full model
+#Full model- no check for VIF
 full_mod<-lmer(COVER~soil_moisture+(0 + soil_moisture | SPP)
           + herb_cover+ (0 + herb_cover | SPP) 
           + shrub_cover+ (0 + shrub_cover | SPP)
@@ -58,8 +61,54 @@ full_mod<-lmer(COVER~soil_moisture+(0 + soil_moisture | SPP)
           + (1|SPP)
           +(1|Site),
           data = final_dat)
-fmsb::VIF(full_mod)
-RsquareAdj(full_mod)
+
+
+
+#NO random SLOPE and vars removed based on VIF
+
+full<-lmer(COVER~soil_moisture
+               + herb_cover
+               + shrub_cover
+               + LAI_tree_layer 
+               + LAI_shrub_layer 
+               + Total_Fires
+               + Fire_Simpson_Div 
+               + yrs_in_rotation+
+               +(1|SPP)
+               +(1|Site),
+               data = final_dat)
+car::vif(full)
+summary(full)
+sjstats::r2(full) 
+
+#with random slopes
+full2<-lmer(COVER~soil_moisture+(0 + soil_moisture | SPP) 
+           + herb_cover
+           + shrub_cover+(0 + shrub_cover | SPP) 
+           + LAI_tree_layer 
+           + LAI_shrub_layer 
+           + Total_Fires
+           + Fire_Simpson_Div +(0 + Fire_Simpson_Div  | SPP) 
+           + yrs_in_rotation+(0 + yrs_in_rotation  | SPP) 
+           +(1|SPP)
+           +(1|Site),
+           ziformula = ~1
+           data = final_dat)
+car::vif(full2)
+summary(full2)
+performance::r2(full2) 
+drop1(full2)
+
+
+#explore residuals with dHarma
+simulationOutput <- simulateResiduals(fittedModel = full2, plot = F)
+res<-residuals(simulationOutput)
+hist(res, breaks=100)
+plot(simulationOutput)
+testZeroInflation(simulationOutput)
+testDispersion(simulationOutput)
+hist(final_dat$COVER, breaks=100)
+
 #test fewervaraibles after error message
 test_mod<-lmer(COVER~soil_moisture+(0 + soil_moisture | SPP)
                +  (1|SPP)
@@ -67,7 +116,7 @@ test_mod<-lmer(COVER~soil_moisture+(0 + soil_moisture | SPP)
                data = final_dat)
 str(Env)
 summary(test_mod)
-              
+sjstats::r2(full)             
  + herb_cover+ (0 + herb_cover | SPP) 
                + shrub_cover+ (0 + shrub_cover | SPP)
                + LAI_tree_layer +(0+ LAI_tree_layer|SPP)
