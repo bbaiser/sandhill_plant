@@ -35,7 +35,6 @@ colnames(final_dat)[1]<- 'Plot' #change column name for plots to "Plot"
 
 #AIC Model Selection (try all possible models)
 
-D
 #make polynomial terms...
 hh$Elevation2 <- hh$Elevation ^ 2
 hh$LITU2 <- hh$LITU ^ 2
